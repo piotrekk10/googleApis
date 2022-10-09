@@ -14,9 +14,7 @@ from pytube import YouTube
 SCOPES = ['https://www.googleapis.com/auth/youtube.readonly',
           'https://www.googleapis.com/auth/youtube']
 
-sourceVideoList = []
-destinationVideoListIds = []
-videosToAdd = []
+
 destinationPlaylist = "LL"
 
 
@@ -37,6 +35,7 @@ def getToken():
 
 
 def downloadSourceVideoList():
+    sourceVideoList = []
     nextPageToken = ''
     creds = getToken()
     youtube = googleapiclient.discovery.build('youtube', 'v3', credentials=creds)
@@ -55,32 +54,41 @@ def downloadSourceVideoList():
         else:
             break
     print(len(sourceVideoList))
+    return sourceVideoList
 
 def downloadMP3(videoList):
-    #for video in videoList:
-    #   yt = YouTube(f'https://www.youtube.com/watch?v={video["id"]}')
-    #   video = yt.streams.filter(only_audio=True).first()
-    #   destination = './likedVideos'
-    #   out_file = video.download(output_path=destination)
-    #   base, ext = os.path.splitext(out_file)
-    #   new_file = base + '.mp3'
-    #   os.rename(out_file, new_file)
-    #   print(yt.title + " has been successfully downloaded.")
+    for videoId in videoList:
+      yt = YouTube(f'https://www.youtube.com/watch?v={videoId}')
+      video = yt.streams.filter(only_audio=True).first()
+      destination = './likedVideos'
+      out_file = video.download(output_path=destination)
+      base, ext = os.path.splitext(out_file)
+      new_file = base + '.mp3'
+      os.rename(out_file, new_file)
+      print(yt.title + " has been successfully downloaded.")
 
 def split(a, n):
     k, m = divmod(len(a), n)
     return [a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)]
 
-startTime = datetime.now()
-print(startTime)
-if __name__ == '__main__':
-    downloadSourceVideoList()
+def multiProcess():
+    videoList = downloadSourceVideoList()
     numOfProcesses = 4
-    sourceVideoList = list(split(sourceVideoList, numOfProcesses))
+    sourceVideoList = list(split(videoList, numOfProcesses))
     pool = Pool(processes=numOfProcesses)
-    results = pool.map(downloadMP3, sourceVideoList)
+    pool.map(downloadMP3, sourceVideoList)
     pool.close()
+
+def oneProcess():
+    videoList = downloadSourceVideoList()
+    downloadMP3(videoList)
+
+if __name__ == '__main__':
+    startTime = datetime.now()
+    print(startTime)
+
+    oneProcess()
+    #multiProcess()
+
     endTime = datetime.now()
     print('Duration: {}'.format(endTime - startTime))
-
-
