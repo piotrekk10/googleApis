@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import multiprocessing.pool
+
 import googleapiclient
 import os.path
 
@@ -14,8 +16,9 @@ from pytube import YouTube
 SCOPES = ['https://www.googleapis.com/auth/youtube.readonly',
           'https://www.googleapis.com/auth/youtube']
 
-
 destinationPlaylist = "LL"
+destinationFolderPath = './likedVideos'
+errorList = []
 
 
 def getToken():
@@ -56,20 +59,35 @@ def downloadSourceVideoList():
     print(len(sourceVideoList))
     return sourceVideoList
 
+
 def downloadMP3(videoList):
-    for videoId in videoList:
-      yt = YouTube(f'https://www.youtube.com/watch?v={videoId}')
-      video = yt.streams.filter(only_audio=True).first()
-      destination = './likedVideos'
-      out_file = video.download(output_path=destination)
-      base, ext = os.path.splitext(out_file)
-      new_file = base + '.mp3'
-      os.rename(out_file, new_file)
-      print(yt.title + " has been successfully downloaded.")
+        for videoId in videoList:
+            try:
+                yt = YouTube(f'https://www.youtube.com/watch?v={videoId}')
+                video = yt.streams.filter(only_audio=True).first()
+                out_file = video.download(output_path=destinationFolderPath)
+                base, ext = os.path.splitext(out_file)
+                new_file = base + '.mp3'
+                os.rename(out_file, new_file)
+                print(yt.title + " has been successfully downloaded.")
+            except Exception  as e:
+                errorList.append(e)
+                pass
+
 
 def split(a, n):
     k, m = divmod(len(a), n)
-    return [a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)]
+    return [a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+
+def clearFiles():
+    count = 0
+
+    for file in os.listdir(destinationFolderPath):
+        if file.endswith('mp4'):
+            os.remove(destinationFolderPath + '/' + file)
+            count += 1
+    print(f'Usunięto {count} plików')
+
 
 def multiProcess():
     videoList = downloadSourceVideoList()
@@ -79,16 +97,22 @@ def multiProcess():
     pool.map(downloadMP3, sourceVideoList)
     pool.close()
 
+
 def oneProcess():
     videoList = downloadSourceVideoList()
     downloadMP3(videoList)
+
 
 if __name__ == '__main__':
     startTime = datetime.now()
     print(startTime)
 
-    oneProcess()
-    #multiProcess()
+    #oneProcess()
+    multiProcess()
 
     endTime = datetime.now()
     print('Duration: {}'.format(endTime - startTime))
+    clearFiles()
+    print(errorList)
+    for error in errorList:
+        print(error)
